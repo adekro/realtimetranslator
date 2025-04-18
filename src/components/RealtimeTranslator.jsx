@@ -26,17 +26,12 @@ export default function RealtimeTranslator() {
 
         if (text.length < 3) return;
 
-        // 1. Detect language
-        const detectedLangRes = await fetch("https://libretranslate.de/detect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q: text }),
-        });
-        const detected = await detectedLangRes.json();
-        const detectedLang = detected[0].language;
+        // Simple language detection (very basic): assume Italian if mostly vowels
+        const vowels = (text.match(/[aeiouàèéìòù]/gi) || []).length;
+        const detectedLang = vowels / text.length > 0.3 ? "it" : "en";
         setLang(detectedLang);
 
-        // 2. Translate to the other language
+        // Translate to the other language
         const targetLang = detectedLang === "it" ? "en" : "it";
         const translateRes = await fetch("https://libretranslate.de/translate", {
           method: "POST",
@@ -47,10 +42,10 @@ export default function RealtimeTranslator() {
             target: targetLang,
           }),
         });
+
         const data = await translateRes.json();
         const translatedText = data.translatedText;
 
-        // 3. Get audio from VoiceRSS and play in one ear
         fetchAudioAndPlay(translatedText, targetLang);
       };
 
@@ -89,7 +84,6 @@ export default function RealtimeTranslator() {
       const mainGain = audioCtx.createGain();
       mainGain.gain.value = 1;
 
-      // IT = destra (1), EN = sinistra (0)
       if (lang === "it") {
         source.connect(zeroGain).connect(merger, 0, 0); // mute left
         source.connect(mainGain).connect(merger, 0, 1); // right
